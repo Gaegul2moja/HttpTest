@@ -1,0 +1,139 @@
+# Retrofit 2
+> [실습한 GITHUB 링크](https://github.com/Gaegul2moja/HttpTest)를 기반으로 조사하였습니다.
+
+## OkHttp, Retrofit, Volley의 등장 배경
+한때 HttpUrlConnection 이나 HttpsUrlConnection을 NetworkManager class에 넣고 AsyncTask로 접근하는 방식을 사용했었다. 
+
+해당 방법은 HttpUrlConnection을 이용해 연결하고, Buffer을 통한 입출력을 하고, 예외처리 등의 필요해 개발자가 많은 부분들을 신경써야 해 실수할 가능성이 컸다.
+
+그러나, OkHttp, Retrofit, Volley의 등장으로 더 간편해지게 되었다.
+
+<hr/>
+
+## OkHttp3
+OkHttp는 서버와 HTTP, HTTP/2 프로토콜 통신을 위한 클라이언트 라이브러리이다.
+- Square에서 제공하는 오픈소스로, 동기/비동기 방식을 각각 제공해서 개발자가 선택하여 사용할 수 있도록 한다.
+### 장점
+- Interceptor 처리하는 것이 간편하다
+    - Application Interceptor : Application과 OKHttp 사이에 Request, Responses 정보를 intercept해서 추가적으로 처리한다.
+    - Network Interceptors : Network와 OkHttp 사이에 Requests, Response 정보를 intercept 하여 추가적으로 처리한다.
+- 기본 설정값 : 강력한 기본 값들이 잘 설정되어있다.
+
+### 구현
+- 아래와 같은 형식으로 data를 post로 보낸다.
+```java
+OkHttpClient client = new OkHttpClient();
+
+String post(String url, String json) throws IOException {
+  RequestBody body = RequestBody.create(json, JSON);
+  Request request = new Request.Builder()
+      .url(url)
+      .post(body)
+      .build();
+  try (Response response = client.newCall(request).execute()) {
+    return response.body().string();
+  }
+}
+```
+
+<hr/>
+
+## Retrofit
+Retrofit은 type-safe한 HTTP 클라이언트 라이브러리이다.
+- Retrofit은 OkHttp 클라이언트를 디폴트로 선언해 그 위에서 동작한다.
+> **type-safe란 ?** 
+ 어떠한 연산/오퍼레이션도 정의되지 않은 결과를 내놓지 않는 것. 즉, 예측가능한 결과만 내는 것을 말한다.
+
+### 장점
+- 어떤 Http client든 원하는 것을 어느것이든 쓸 수 있다. (Apache Http client, URL, OkHttp, 커스텀 등)
+- 플러그형 시리얼라이제이션으로, JSON 사용시, Jackson으로 교체할 수 있다.
+
+### 구현
+```java
+public interface GitHubService {
+    @GET("repos/{owner}/{repo}/contributors")
+    Call<List<RetrofitTestActivity.Contributor>> repoContributors(
+            @Path("owner") String owner,
+            @Path("repo") String repo);
+
+    public static final Retrofit retrofit = new Retrofit.Builder()
+            .baseUrl("https://api.github.com/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build();
+}
+
+...
+
+GitHubService gitHubService = GitHubService.retrofit.create(GitHubService.class);
+        Call<List<Contributor>> call = gitHubService.repoContributors("square", "retrofit");
+        call.enqueue(new Callback<List<Contributor>>() {
+            @Override
+            public void onResponse(Call<List<Contributor>> call, Response<List<Contributor>> response) {
+                retrofitTestTV.setText(response.body().toString());
+            }
+
+            @Override
+            public void onFailure(Call<List<Contributor>> call, Throwable t) {
+
+            }
+        });
+```
+
+<hr/>
+
+## Volley
+### 장점
+- 네트워크 요청의 자동 스케줄링
+- 동시 네트워크 연결
+- 요청 우선순위 지원
+- 취소 요청 API, 단일 요청을 취소하거나 취소 블록 또는 범위를 설정할 수 있다.
+- 재시도 및 백오프와 같은 사용자 지정 용이성
+-  디버깅 및 추적 도구
+
+### 구현
+```java
+StringRequest stringRequest = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                textView.setText(response);
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Log.e("TEST", "ERROR : " + error.getMessage());
+            }
+        });
+```
+<hr/>
+
+## 비교
+- 둘다 "Callback"을 재공할 수 있으며, 비동기 네트워크 호출이 완료되면 메소드 중 하나가 기본스레드에서 호출된다.
+- API 엔드포인트를 지정하는 방법, 얻는 방법
+    - Volley 사용
+        - API 호출 시, 전체 엔드 포인트를 동적으로 지정할 수 있다. 
+        - JSON Object 또는 JSON Array를 요청에 따라 반환한다.
+    - Retrofit 사용
+        - API 호출에 대한 기본 엔드포인트 url을 지정한 다음, JAVA annotaion을 이용해 엔드포인트를 지정하는 정적 인터페이스를 빌드
+        - GSON을 사용하여 자동으로 JSON 구문 분석을 수행
+        - 속도가 빠르다
+- Retrofit이 API의 사용에서 오류, 캐싱, 페이징을 자동으로 처리하기 복잡하지 않다.
+- 응답 시간 비교
+<img src="https://user-images.githubusercontent.com/38804451/76816654-1a81cb00-6844-11ea-9004-15368762b9b3.png" height="200px" />
+
+
+
+## 참고 링크
+- [Advanced Networking : when Retrofit is not enough](https://proandroiddev.com/advanced-networking-when-retrofit-is-not-enough-316a897ddf40)
+
+- [기상청에서 날씨 받아오기](https://wkdgusdn3.tistory.com/entry/Android-%EA%B8%B0%EC%83%81%EC%B2%AD%EC%97%90%EC%84%9C-%EB%82%A0%EC%94%A8-%EB%B0%9B%EC%95%84%EC%98%A4%EA%B8%B0)
+
+- [OkHttp](https://square.github.io/okhttp/)
+
+- [Android Async Http Clients: Volley vs Retrofit](https://jongmin92.github.io/2018/01/29/Programming/android-retrofit2-okhttp3/)
+
+- [Retrofit](https://square.github.io/retrofit/)
+
+- [Retrofit 예제](https://yoo-hyeok.tistory.com/79)
+
+- [Retrofit 예제](https://korkang91.tistory.com/4)
+
