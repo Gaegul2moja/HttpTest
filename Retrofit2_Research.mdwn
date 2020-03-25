@@ -49,6 +49,7 @@ Retrofit은 type-safe한 HTTP 클라이언트 라이브러리이다.
 - 플러그형 시리얼라이제이션으로, JSON 사용시, Jackson으로 교체할 수 있다.
 
 ### 구현
+## GET
 ```java
 public interface GitHubService {
     @GET("repos/{owner}/{repo}/contributors")
@@ -78,6 +79,14 @@ GitHubService gitHubService = GitHubService.retrofit.create(GitHubService.class)
             }
         });
 ```
+
+## JSON PARSE를 이용한 예제
+[JSON 과 Retrofit](http://jsonplaceholder.typicode.com/)
+### GET
+- JsonPlaceHolderApi : 전체 조회
+- JsonPlaceHolderByIdApi : 검색 조회
+- Post : post 데이터
+- JsonTestActivity
 
 <hr/>
 
@@ -137,3 +146,289 @@ StringRequest stringRequest = new StringRequest(Request.Method.GET, url, new Res
 
 - [Retrofit 예제](https://korkang91.tistory.com/4)
 
+- [Volley vs Retrofit ](http://www.codeplayon.com/2019/04/android-volley-vs-retrofit-better-approach/) -> 이 라인 이후로 한번 더 보세요
+
+- [어플리케이션의 HTTP 라이브러리를 Volley에서 Retrofit2로 교체한 후기](https://zerodice0.tistory.com/196)
+
+- [안드로이드 Retrofit 예제](https://cishome.tistory.com/136?category=765807)
+
+
+# Retrofit 전환 가능성
+- 여러개 조회 (버킷 및 아이템 등에서 사용되었던 것으로 기억)
+    - getPost(@Query("...") int ..., @Query("...") int ..., @Query("...") int ..., @Query("...") int ...) 처럼 여러 파라미터를 넣을 수 있다
+    - getPost(@Query("...") Integer[] ...); 도 같다
+    - 맵을 이용해 sorting 기준 및, desc 등의 옵션을 넣을 수 있다
+    ```java
+    Map<String, String> map = new HashMap<>();
+        map.put("userId", "5");
+        map.put("_sort", "id");
+        map.put("_order", "desc");
+    ```
+
+# NcPlatformSDK BaseHttpRequest
+```java
+public class BaseHttpRequest {
+    ...
+
+    /**
+     * onStart
+     */
+    protected void onStart() {
+
+    }
+
+    public interface Listener {
+        void onResponse(HttpResponse response);
+
+        void onError(HttpResponse response);
+    }
+
+    public enum ResponseType {
+        object, array,
+    }
+
+    public class RequestType {
+        public static final int jwt = 0x01;      // Authorization이 JWT인 경우
+        public static final int bearer = 0x02;   // Authorization이 Bearer인 경우
+        public static final int header = 0x10;   // 파라미터가 JWT Header에 포함되는 경우
+        public static final int body = 0x20;     // 파라미터가 Body에 들어가는 경우
+    }
+
+    public BaseHttpRequest(int method, String url, JSONObject params, NcAccessToken accessToken, Integer requestType, ResponseType responseType, int timeout, Listener listener) {
+        mTxId = mMaxTransactionId.getAndIncrement();
+        mMethod = method;
+        mUrl = url;
+        mParams = params;
+        if (requestType == null) {
+            mRequestType = RequestType.jwt | RequestType.header;
+        } else {
+            mRequestType = requestType;
+        }
+        mAccessToken = accessToken;
+        mListener = listener;
+
+        if (responseType == null) {
+            mResponseType = ResponseType.object;
+        } else {
+            mResponseType = responseType;
+        }
+
+        mTimeout = timeout;
+        mResponseHandler = new HttpResponseHandler(this);
+
+        // host가 없으면 api url를 쓰도록 되어있던 코드를
+        // 기본적으로 api url을 쓰도록 생성자에서 지정하고
+        // host를 변경이 필요한 경우 setHost()를 이용하여 변경하도록 한다.
+        mHost = NcEnvironment.get().getApiUrl();
+        mAppId = NcPlatformSdk.getAppIdInternal();
+        mAppSignature = NcPlatformSdk.getAppSignatureInternal();
+        mResponseServerDate = null;
+
+        switch (method) {
+            case 0:
+                mMethodString = "GET";
+                break;
+            case 1:
+                mMethodString = "POST";
+                break;
+            case 2:
+                mMethodString = "PUT";
+                break;
+            case 3:
+                mMethodString = "DELETE";
+                break;
+            default:
+                mMethodString = "DEPRECATED_GET_OR_POST";
+                break;
+        }
+    }
+
+    ...//set, get
+
+    /**
+     * getRequestQueue
+     *
+     * @return
+     */
+    private RequestQueue getRequestQueue() {
+        // 반복 사용 시, 재생성하지 않게 static으로 처리
+        if (mRequestQueue == null) {
+            mRequestQueue = Volley.newRequestQueue(NcPlatformSdk.getApplicationContext());
+        }
+        return mRequestQueue;
+    }
+
+    /**
+     * Map에서 사용할 RequestQueue
+     *
+     * @return
+     */
+    private RequestQueue getMapRequestQueue() {
+        // 반복 사용 시, 재생성하지 않게 static으로 처리
+        if (mMapRequestQueue == null) {
+            mMapRequestQueue = Volley.newRequestQueue(NcPlatformSdk.getApplicationContext());
+        }
+        return mMapRequestQueue;
+    }
+
+    public void execute(MetaData meta) {
+        mMetaData = meta;
+        executeRequestInternal(getRequestQueue());
+    }
+
+    public void executeMapRequest(MetaData meta) {
+        mMetaData = meta;
+        executeRequestInternal(getMapRequestQueue());
+    }
+
+    private void executeRequestInternal(RequestQueue queue) {
+        // host가 비어있는 경우 에러를 리턴해준다
+        if (TextUtils.isEmpty(mHost)) {
+            String message = "Http host is not set.";
+            LogUtils.e(TAG, message);
+            if (mListener != null) {
+                NcJSONObject errorJson = NcError.buildErrorJsonObject(NcError.Error.NOT_SET_SERVER_URL, message);
+                HttpResponse errorResponse = new HttpResponse(this, null, errorJson);
+
+                mListener.onError(errorResponse);
+            }
+            return;
+        }
+
+        // onStart
+        this.onStart();
+        doApiRequest(queue, mMethod, mUrl, mParams, mAccessToken);
+    }
+
+    private StringRequest doApiRequest(RequestQueue requestQueue, int method, String url, final JSONObject params, final NcAccessToken accessToken) {
+        // volley는 내부적으로 쓰레드에서 동작
+        // DEV모드일 경우에는 URL을 변경한다.
+        url = mHost + url;
+
+        StringRequest request = new StringRequest(method, url, mResponseHandler, mResponseHandler) {
+            @Override
+            public byte[] getBody() throws AuthFailureError {
+                if (params != null && hasFlagBit(RequestType.body)) {
+                    try {
+                        return params.toString().getBytes("UTF-8");
+                    } catch (UnsupportedEncodingException e) {
+                        LogUtils.e(TAG, "UnsupportedEncodingException : ", e);
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public String getBodyContentType() {
+                return "application/json; charset="+DEFAULT_ENCODING;
+            }
+
+            @Override
+            protected Response<String> parseNetworkResponse(NetworkResponse response) {
+                try {
+                    String date = response.headers.get(HTTP_DATE_HEADER);
+                    log("parseNetworkResponse headers getDate : ", date);
+                    mResponseServerDate = date;
+
+                } catch (Exception e) {
+                    LogUtils.e(TAG, "parseNetworkResponse Exception: ", e);
+                }
+                return super.parseNetworkResponse(response);
+            }
+
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                String authorization = null;
+                Map<String, String> headers = new HashMap<>();
+
+                JSONObject newParams = null;
+                if (hasFlagBit(RequestType.header)) {
+                    newParams = params;
+                }
+
+                if (hasFlagBit(RequestType.jwt)) {
+                    authorization = HttpHelper.buildJwtHeader(accessToken, (newParams == null) ? new JSONObject() : newParams, mAppId, mAppSignature);
+                } else if (hasFlagBit(RequestType.bearer)) {
+                    authorization = HttpHelper.buildBearerHeader(accessToken.getValue());
+                }
+
+                headers.put(HttpHeaderKeys.AUTHORIZATION, authorization);
+                headers.put(HttpHeaderKeys.CHARSET, DEFAULT_ENCODING);
+                headers.put(HttpHeaderKeys.USER_AGENT, HttpHelper.buildUserAgent());
+                headers.put(HttpHeaderKeys.ACCEPT_ENCODING, "identity");
+                headers.put(HttpHeaderKeys.ACCEPT_LANGUAGE, NcPlatformSdk.getLanguageCodeInternal());
+
+                log("API Authorization", authorization);
+                log("API User-Agent", HttpHelper.buildUserAgent());
+                log("API Accept-Language", NcPlatformSdk.getLanguageCodeInternal());
+
+                if (ConsoleManager.get().getActivationStatus()) {
+                    headers.put(HttpHeaderKeys.X_B3_TRACEID, Utils.getRandomHexString(16));
+                    headers.put(HttpHeaderKeys.X_B3_SPANID, Utils.getRandomHexString(8));
+                    headers.put(HttpHeaderKeys.X_B3_SAMPLED, BIT_TRACE_SAMPLED);
+
+                    log("API X_B3_TRACEID", headers.get(HttpHeaderKeys.X_B3_TRACEID));
+                    log("API X_B3_SPANID", headers.get(HttpHeaderKeys.X_B3_SPANID));
+                    log("API X_B3_SAMPLED", headers.get(HttpHeaderKeys.X_B3_SAMPLED));
+                }
+                return headers;
+            }
+        };
+
+        log("API URL", url);
+        log("API Method", String.valueOf(method));
+        log("API Params", params == null ? "" : params.toString());
+
+
+        JSONObject logJson = new JSONObject();
+        try {
+            logJson.put("header", new JSONObject(request.getHeaders()));
+            logJson.put("body", params);
+        } catch (JSONException e) {
+
+        } catch (AuthFailureError e) {
+
+        }
+
+        if (ApiLogManager.get().isActive(mMetaData)) {
+            mLogSequenceId = mMetaData.nextLogSequenceId();
+            ApiLogManager.get().npLogStart(mLogSequenceId, getApiGroupName(), mMethodString + "|" + mHost + mUrl, logJson, mMetaData);
+        }
+
+        request.setShouldCache(false);
+        request.setRetryPolicy(buildRetryPolicy(mTimeout, mRetryCount, 0));    // 백오프 정책 사용 안함
+        requestQueue.add(request);
+
+        return request;
+    }
+
+    public HttpResponse onResponse(NcJSONObject data, NcJSONObject error) {
+        HttpResponse response = null;
+        if (error != null) {
+            response = new HttpResponse(this, null, error);
+
+            if (response != null && ApiLogManager.get().isActive(mMetaData))
+                ApiLogManager.get().npLogEnd(mLogSequenceId, getApiGroupName(), mMethodString + "|" + mHost + mUrl, false, response.getError(), mMetaData);
+
+            if (mListener != null) {
+                mListener.onError(response);
+            }
+
+        } else {
+            response = new HttpResponse(this, data, null);
+
+            if (response != null && ApiLogManager.get().isActive(mMetaData))
+                ApiLogManager.get().npLogEnd(mLogSequenceId, getApiGroupName(), mMethodString + "|" + mHost + mUrl, true, response.getData(), mMetaData);
+
+            if (mListener != null) {
+                mListener.onResponse(response);
+            }
+        }
+
+        return response;
+    }
+
+    ...
+```
+
+##### 마지막 링크꺼 부터 시작해서 Retrofit의 POST, DELETE 등의 사용 보기부터 하면됨 (POST부터)
