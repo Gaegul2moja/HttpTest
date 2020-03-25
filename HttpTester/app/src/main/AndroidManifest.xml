@@ -19,6 +19,7 @@
         <activity android:name=".RetrofitTestActivity"/>
         <activity android:name=".OkHttpTestActivity"/>
         <activity android:name=".VolleyTestActivity"/>
+        <activity android:name=".JsonTestActivity"/>
     </application>
 
 </manifest>

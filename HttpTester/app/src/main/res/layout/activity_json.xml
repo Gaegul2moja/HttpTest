@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="center">
+        <Button
+            android:id="@+id/json_posts_all_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="POSTS_ALL"
+            />
+        <Button
+            android:id="@+id/json_posts_by_id_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="POSTS_BY_ID"
+            />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        app:layout_constraintBottom_toTopOf="@+id/json_scroll"
+        android:background="@color/colorPrimary"/>
+
+    <ScrollView
+        android:id="@+id/json_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        app:layout_constraintBottom_toBottomOf="parent">
+    <TextView
+        android:id="@+id/json_result_tv"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="10dp"
+        />
+    </ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

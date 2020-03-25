@@ -24,6 +24,7 @@ public class MainActivity extends AppCompatActivity {
     private Button toOkHttpButton;
     private Button toRetrofitButton;
     private Button toVolleyButton;
+    private Button toJsonButton;
 
 
     @Override
@@ -34,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
         toOkHttpButton = findViewById(R.id.main_to_okhttp_button);
         toRetrofitButton = findViewById(R.id.main_to_retrofit_button);
         toVolleyButton = findViewById(R.id.main_to_volley_button);
+        toJsonButton = findViewById(R.id.main_to_json);
 
         toOkHttpButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -53,6 +55,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, VolleyTestActivity.class);
+                startActivity(intent);
+            }
+        });
+        toJsonButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, JsonTestActivity.class);
                 startActivity(intent);
             }
         });
