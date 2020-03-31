@@ -5,10 +5,15 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <LinearLayout
+        android:id="@+id/json_first_layout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center">
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:gravity="center_horizontal">
         <Button
             android:id="@+id/json_posts_all_button"
             android:layout_width="wrap_content"
@@ -20,6 +25,32 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="POSTS_BY_ID"
+            />
+        <Button
+            android:id="@+id/json_posts_create_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="POSTS_CREATE"
+            />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/json_second_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_horizontal"
+        app:layout_constraintBottom_toTopOf="@id/json_first_layout">
+        <Button
+            android:id="@+id/json_put_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PUT"
+            />
+        <Button
+            android:id="@+id/json_delete_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DELETE"
             />
     </LinearLayout>
 

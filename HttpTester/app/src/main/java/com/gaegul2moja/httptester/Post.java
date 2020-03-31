@@ -11,11 +11,17 @@ public class Post {
         "body": "quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto"
      },...
     */
-    int userId;
-    int id;
-    String title;
+    private int userId;
+    private int id;
+    private String title;
     @SerializedName("body") //json의 key 값과 여기서 사용하려는 이름을 달리 사용하기 위해서 Json의 key 값을 지정한다.
-    String text;
+    private String text;
+
+    public Post (int userId, String title, String text) {
+        this.userId = userId;
+        this.title = title;
+        this.text = text;
+    }
 
     public int getUserId() {
         return userId;
